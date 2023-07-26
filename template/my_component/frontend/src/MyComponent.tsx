@@ -3,31 +3,39 @@ import {
   StreamlitComponentBase,
   withStreamlitConnection,
 } from "streamlit-component-lib"
+import DataTable from 'react-data-table-component';
 import React, { ReactNode } from "react"
 
 interface State {
-  numClicks: number
-  isFocused: boolean
-}
-
+    numClicks: number; 
+    isFocused: boolean;
+    ls: string[];
+    df: any;
+} 
 /**
  * This is a React-based component template. The `render()` function is called
  * automatically when your component should be re-rendered.
  */
 class MyComponent extends StreamlitComponentBase<State> {
-  public state = { numClicks: 0, isFocused: false }
+  public state = {
+        numClicks: 0, 
+        isFocused: false, 
+        ls: [],
+        df: {}, 
+    }
 
   public render = (): ReactNode => {
     // Arguments that are passed to the plugin in Python are accessible
     // via `this.props.args`. Here, we access the "name" arg.
     const name = this.props.args["name"]
+    const ls = JSON.parse(this.props.args["ls"]) as string[];
+    const df = JSON.parse(this.props.args['df']) as any[];  
 
     // Streamlit sends us a theme object via props that we can use to ensure
     // that our component has visuals that match the active theme in a
     // streamlit app.
     const { theme } = this.props
     const style: React.CSSProperties = {}
-
     // Maintain compatibility with older versions of Streamlit that don't send
     // a theme object.
     if (theme) {
@@ -45,8 +53,22 @@ class MyComponent extends StreamlitComponentBase<State> {
     // variable, and send its new value back to Streamlit, where it'll
     // be available to the Python program.
     return (
-      <span>
+      <span className="card text-center border-success mb-3">
         Hello, {name}! &nbsp;
+        <br />
+        <br />
+        <div>
+        <div>
+            {
+            df.map(row => (
+                <div>{row.Name}</div> 
+            ))
+            }
+        </div>
+        </div>
+        {/* {ls.map((item) => <div key={item}>{item}</div>)}; */}
+        <br />
+        <br />
         <button
           style={style}
           onClick={this.onClicked}
@@ -65,7 +87,7 @@ class MyComponent extends StreamlitComponentBase<State> {
     // Increment state.numClicks, and pass the new value back to
     // Streamlit via `Streamlit.setComponentValue`.
     this.setState(
-      prevState => ({ numClicks: prevState.numClicks + 1 }),
+      (prevState) => ({ numClicks: prevState.numClicks + 1 }),
       () => Streamlit.setComponentValue(this.state.numClicks)
     )
   }

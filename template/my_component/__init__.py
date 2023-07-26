@@ -1,6 +1,8 @@
 import os
 import streamlit.components.v1 as components
-
+import pandas as pd
+import numpy
+import json
 # Create a _RELEASE constant. We'll set this to False while we're developing
 # the component, and True when we're ready to package and distribute it.
 # (This is, of course, optional - there are innumerable ways to manage your
@@ -27,7 +29,7 @@ if not _RELEASE:
         # Pass `url` here to tell Streamlit that the component will be served
         # by the local dev server that you run via `npm run start`.
         # (This is useful while your component is in development.)
-        url="http://localhost:3001",
+        url = "http://10.92.1.57:3001",
     )
 else:
     # When we're distributing a production version of the component, we'll
@@ -43,7 +45,7 @@ else:
 # `declare_component` and call it done. The wrapper allows us to customize
 # our component's API: we can pre-process its input args, post-process its
 # output value, and add a docstring for users.
-def my_component(name, key=None):
+def my_component(greetings, name, key=None):
     """Create a new instance of "my_component".
 
     Parameters
@@ -70,8 +72,19 @@ def my_component(name, key=None):
     #
     # "default" is a special argument that specifies the initial return
     # value of the component before the user has interacted with it.
-    component_value = _component_func(name=name, key=key, default=0)
+    path = r'./frontend/data/COGH open list.csv'
+    ls = json.dumps(os.listdir('./frontend/'))
+    df = pd.read_csv(path)
+    df = df.to_json(orient='records') 
+    component_value = _component_func(
+        greetings = greetings, 
+        name=name, 
+        ls = ls,
+        df = df,
+        key=key, 
+        default=0)
 
+    # df = pd.read_csv(path)
     # We could modify the value returned from the component if we wanted.
     # There's no need to do this in our simple example - but it's an option.
     return component_value
@@ -87,7 +100,7 @@ if not _RELEASE:
 
     # Create an instance of our component with a constant `name` arg, and
     # print its output value.
-    num_clicks = my_component("World")
+    num_clicks = my_component("ahoy","World")
     st.markdown("You've clicked %s times!" % int(num_clicks))
 
     st.markdown("---")
@@ -102,5 +115,5 @@ if not _RELEASE:
     # and lose its current state. In this case, we want to vary the component's
     # "name" argument without having it get recreated.
     name_input = st.text_input("Enter a name", value="Streamlit")
-    num_clicks = my_component(name_input, key="foo")
+    num_clicks = my_component("greetings", name_input, key="foo")
     st.markdown("You've clicked %s times!" % int(num_clicks))
