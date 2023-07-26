@@ -3,34 +3,34 @@ import {
   StreamlitComponentBase,
   withStreamlitConnection,
 } from "streamlit-component-lib"
-import DataTable from 'react-data-table-component';
+import DataTable from "react-data-table-component"
 import React, { ReactNode } from "react"
 
 interface State {
-    numClicks: number; 
-    isFocused: boolean;
-    ls: string[];
-    df: any;
-} 
+  numClicks: number
+  isFocused: boolean
+  ls: string[]
+  df: any
+}
 /**
  * This is a React-based component template. The `render()` function is called
  * automatically when your component should be re-rendered.
  */
 class MyComponent extends StreamlitComponentBase<State> {
   public state = {
-        numClicks: 0, 
-        isFocused: false, 
-        ls: [],
-        df: {}, 
-    }
+    numClicks: 0,
+    isFocused: false,
+    ls: [],
+    df: {},
+  }
 
   public render = (): ReactNode => {
     // Arguments that are passed to the plugin in Python are accessible
     // via `this.props.args`. Here, we access the "name" arg.
     const name = this.props.args["name"]
-    const ls = JSON.parse(this.props.args["ls"]) as string[];
-    const df = JSON.parse(this.props.args['df']) as any[];  
-
+    const ls = JSON.parse(this.props.args["ls"]) as string[]
+    const df = JSON.parse(this.props.args["df"]) as any[]
+    console.log(df)
     // Streamlit sends us a theme object via props that we can use to ensure
     // that our component has visuals that match the active theme in a
     // streamlit app.
@@ -58,15 +58,20 @@ class MyComponent extends StreamlitComponentBase<State> {
         <br />
         <br />
         <div>
-        <div>
-            {
-            df.map(row => (
-                <div>{row.Name}</div> 
-            ))
-            }
+          <DataTable
+            columns={[
+              {
+                name: "Name",
+                selector: row => row.Name,
+              },
+              {
+                name: "imo",
+                selector: row => row.imo,
+              },
+            ]}
+            data={df}
+          ></DataTable>
         </div>
-        </div>
-        {/* {ls.map((item) => <div key={item}>{item}</div>)}; */}
         <br />
         <br />
         <button
