@@ -78,9 +78,10 @@ def my_component(greetings, name, key=None):
     ls = json.dumps(os.listdir('./frontend/'))
     df1 = pd.read_csv(path1)
     df2 = pd.read_csv(path2)
-    df1['order_key'] = df1['order_key'].str.replace('\W', '')
-    df2['order_key'] = df2['order_key'].str.replace('\W', '')
+    df1['order_key'] = df1['order_key'].str.replace('\W', '-').astype(str)
+    df2['order_key'] = df2['order_key'].str.replace('\W', '-').astype(str)
     print(df1)
+    df1[['new', 'roll1', 'gone']] = df1[['new', 'roll1', 'gone']] .fillna("['']")
 
     df1 = df1.to_json(orient='records') 
     df2 = df2.to_json(orient='records') 
@@ -111,10 +112,8 @@ if not _RELEASE:
     # Create an instance of our component with a constant `name` arg, and
     # print its output value.
     num_clicks = my_component("ahoy","World")
-    st.markdown("You've clicked %s times!" % int(num_clicks))
+    # st.markdown("You've clicked %s times!" % int(num_clicks))
 
-    st.markdown("---")
-    st.subheader("Component with variable args")
 
     # Create a second instance of our component whose `name` arg will vary
     # based on a text_input widget.

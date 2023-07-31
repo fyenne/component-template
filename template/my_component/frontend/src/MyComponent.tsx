@@ -3,7 +3,6 @@ import {
   StreamlitComponentBase,
   withStreamlitConnection,
 } from "streamlit-component-lib"
-
 import DataTable from "react-data-table-component"
 import React, { ReactNode, useState } from "react"
 
@@ -21,25 +20,24 @@ interface CustomCellProps {
 }
 
 interface DataRow {
-  name_: string
-  additionalInfo: string
+  open_period: string
+  diff: number
+  order_key: string
+  new: boolean
+  likely_fixed: boolean
 }
+ 
 
-interface HoveredRow {
-  name: string
-  // other properties
-}
-
-const CustomCell: React.FC<CustomCellProps> = ({ value, tooltipContent }) => {
-  const [showTooltip, setShowTooltip] = useState(false)
-
+const CustomCell = ({ value }: { value: any }) => {
+  const [hovered, setHovered] = useState(false)
   return (
     <div
-      onMouseEnter={() => setShowTooltip(true)}
-      onMouseLeave={() => setShowTooltip(false)}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
     >
-      {value}
-      {showTooltip && <div className="tooltip">{tooltipContent}</div>}
+      {hovered ? <div>
+        hahshd
+      </div> : value}
     </div>
   )
 }
@@ -52,36 +50,21 @@ class MyComponent extends StreamlitComponentBase<State> {
     df1: {},
     df2: {},
   }
+  
 
-  public render = (): ReactNode => {
-    // Arguments that are passed to the plugin in Python are accessible
-    // via `this.props.args`. Here, we access the "name" arg.
-    const name = this.props.args["name"]
-    // const ls = JSON.parse(this.props.args["ls"]) as string[]
+  public render = (): ReactNode => { 
+    const name = this.props.args["name"] 
     const df1 = JSON.parse(this.props.args["df1"]) as any[]
-    const df2 = JSON.parse(this.props.args["df2"]) as any[]
-
-    // Streamlit sends us a theme object via props that we can use to ensure
-    // that our component has visuals that match the active theme in a
-    // streamlit app.
+    const df2 = JSON.parse(this.props.args["df2"]) as any[] 
     const { theme } = this.props
-    const style: React.CSSProperties = {}
-    // Maintain compatibility with older versions of Streamlit that don't send
-    // a theme object.
-    if (theme) {
-      // Use the theme object to style our button border. Alternatively, the
-      // theme style is defined in CSS vars.
+    const style: React.CSSProperties = {} 
+    if (theme) { 
       const borderStyling = `1px solid ${
         this.state.isFocused ? theme.primaryColor : "gray"
       }`
       style.border = borderStyling
       style.outline = borderStyling
-    }
-
-    // Show a button and some text.
-    // When the button is clicked, we'll increment our "numClicks" state
-    // variable, and send its new value back to Streamlit, where it'll
-    // be available to the Python program.
+    } 
     return (
       <span className="card text-center border-success mb-3">
         Hello, {name}! &nbsp;
@@ -93,13 +76,16 @@ class MyComponent extends StreamlitComponentBase<State> {
               {
                 name: "open_period",
                 selector: (row) => row.open_period,
-                // cell: (row: DataRow) => (
-                //     <CustomCell value={row.name} tooltipContent={row.additionalInfo} />
-                //   ),
+                cell: (row) => (
+                  <div>
+                    <span title={row.new}>{row.open_period}</span>
+                  </div>
+                ),
               },
               {
                 name: "diff",
                 selector: (row) => row.diff,
+                cell:  (row: DataRow) => <CustomCell value={row.diff} />,
               },
               {
                 name: "oerder_key",
@@ -112,6 +98,10 @@ class MyComponent extends StreamlitComponentBase<State> {
               {
                 name: "likely_fixed",
                 selector: (row) => row.likely_fixed,
+              },
+              {
+                name: "roll",
+                selector: (row) => row.roll1,
               },
             ]}
             data={df1}
@@ -131,31 +121,19 @@ class MyComponent extends StreamlitComponentBase<State> {
       </span>
     )
   }
-
-  /** Click handler for our "Click Me!" button. */
-  private onClicked = (): void => {
-    // Increment state.numClicks, and pass the new value back to
-    // Streamlit via `Streamlit.setComponentValue`.
+ 
+  private onClicked = (): void => { 
     this.setState(
       (prevState) => ({ numClicks: prevState.numClicks + 1 }),
       () => Streamlit.setComponentValue(this.state.numClicks)
     )
-  }
-
-  /** Focus handler for our "Click Me!" button. */
+  } 
   private _onFocus = (): void => {
     this.setState({ isFocused: true })
   }
-
-  /** Blur handler for our "Click Me!" button. */
+ 
   private _onBlur = (): void => {
     this.setState({ isFocused: false })
   }
-}
-
-// "withStreamlitConnection" is a wrapper function. It bootstraps the
-// connection between your component and the Streamlit app, and handles
-// passing arguments from Python -> Component.
-//
-// You don't need to edit withStreamlitConnection (but you're welcome to!).
+} 
 export default withStreamlitConnection(MyComponent)
