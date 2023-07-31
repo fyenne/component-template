@@ -72,16 +72,26 @@ def my_component(greetings, name, key=None):
     #
     # "default" is a special argument that specifies the initial return
     # value of the component before the user has interacted with it.
-    path = r'./frontend/data/COGH open list.csv'
+    path1 = r'./frontend/data/summ_table_0731.csv'
+    path2 = r'./frontend/data/summ_table_present_0731.csv'
+
     ls = json.dumps(os.listdir('./frontend/'))
-    df = pd.read_csv(path)
-    df = df.to_json(orient='records') 
+    df1 = pd.read_csv(path1)
+    df2 = pd.read_csv(path2)
+    df1['order_key'] = df1['order_key'].str.replace('\W', '')
+    df2['order_key'] = df2['order_key'].str.replace('\W', '')
+    print(df1)
+
+    df1 = df1.to_json(orient='records') 
+    df2 = df2.to_json(orient='records') 
+
     component_value = _component_func(
         greetings = greetings, 
         name=name, 
-        ls = ls,
-        df = df,
-        key=key, 
+        ls  = ls,
+        df1 = df1,
+        df2 = df2, 
+        key = key, 
         default=0)
 
     # df = pd.read_csv(path)
@@ -114,6 +124,6 @@ if not _RELEASE:
     # it is considered a new instance and will be re-mounted on the frontend
     # and lose its current state. In this case, we want to vary the component's
     # "name" argument without having it get recreated.
-    name_input = st.text_input("Enter a name", value="Streamlit")
-    num_clicks = my_component("greetings", name_input, key="foo")
-    st.markdown("You've clicked %s times!" % int(num_clicks))
+    # name_input = st.text_input("Enter a name", value="Streamlit")
+    # num_clicks = my_component("greetings", name_input, key="foo")
+    # st.markdown("You've clicked %s times!" % int(num_clicks))

@@ -3,34 +3,64 @@ import {
   StreamlitComponentBase,
   withStreamlitConnection,
 } from "streamlit-component-lib"
+
 import DataTable from "react-data-table-component"
-import React, { ReactNode } from "react"
+import React, { ReactNode, useState } from "react"
 
 interface State {
   numClicks: number
   isFocused: boolean
   ls: string[]
-  df: any
+  df1: any
+  df2: any
 }
-/**
- * This is a React-based component template. The `render()` function is called
- * automatically when your component should be re-rendered.
- */
+
+interface CustomCellProps {
+  value: string
+  tooltipContent: string
+}
+
+interface DataRow {
+  name_: string
+  additionalInfo: string
+}
+
+interface HoveredRow {
+  name: string
+  // other properties
+}
+
+const CustomCell: React.FC<CustomCellProps> = ({ value, tooltipContent }) => {
+  const [showTooltip, setShowTooltip] = useState(false)
+
+  return (
+    <div
+      onMouseEnter={() => setShowTooltip(true)}
+      onMouseLeave={() => setShowTooltip(false)}
+    >
+      {value}
+      {showTooltip && <div className="tooltip">{tooltipContent}</div>}
+    </div>
+  )
+}
+
 class MyComponent extends StreamlitComponentBase<State> {
   public state = {
     numClicks: 0,
     isFocused: false,
     ls: [],
-    df: {},
+    df1: {},
+    df2: {},
   }
 
   public render = (): ReactNode => {
     // Arguments that are passed to the plugin in Python are accessible
     // via `this.props.args`. Here, we access the "name" arg.
     const name = this.props.args["name"]
-    const ls = JSON.parse(this.props.args["ls"]) as string[]
-    const df = JSON.parse(this.props.args["df"]) as any[]
-    console.log(df)
+    // const ls = JSON.parse(this.props.args["ls"]) as string[]
+    const df1 = JSON.parse(this.props.args["df1"]) as any[]
+    const df2 = JSON.parse(this.props.args["df2"]) as any[]
+
     // Streamlit sends us a theme object via props that we can use to ensure
     // that our component has visuals that match the active theme in a
     // streamlit app.
@@ -61,15 +91,30 @@ class MyComponent extends StreamlitComponentBase<State> {
           <DataTable
             columns={[
               {
-                name: "Name",
-                selector: row => row.Name,
+                name: "open_period",
+                selector: (row) => row.open_period,
+                // cell: (row: DataRow) => (
+                //     <CustomCell value={row.name} tooltipContent={row.additionalInfo} />
+                //   ),
               },
               {
-                name: "imo",
-                selector: row => row.imo,
+                name: "diff",
+                selector: (row) => row.diff,
+              },
+              {
+                name: "oerder_key",
+                selector: (row) => row.order_key,
+              },
+              {
+                name: "new",
+                selector: (row) => row.new,
+              },
+              {
+                name: "likely_fixed",
+                selector: (row) => row.likely_fixed,
               },
             ]}
-            data={df}
+            data={df1}
           ></DataTable>
         </div>
         <br />
