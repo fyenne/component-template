@@ -5,7 +5,7 @@ import numpy
 import json
 import sys
 import re
-
+import datetime
 import plotly.graph_objects as go
 import plotly.express as px
 import streamlit as st
@@ -27,6 +27,16 @@ st.set_page_config(layout="wide")
 # best practice.
 
 if not _RELEASE:
+    cwd = os.getcwd()
+    if re.findall('component-template$', cwd) == []:
+        path_prefix = './backend'
+    else:
+        path_prefix = ''
+    sys.path.append(path_prefix)
+    from backend.backend_util import get_df,get_df_atl_summarized, get_df_pac_summarized
+    import backend.cape_summ_table as cape_summ_table #import get_russian_vessels
+    import backend.plot_util as plot_util
+    import backend.backend_util as backend_util
     _component_func = components.declare_component(
         # We give the component a simple, descriptive name ("my_component"
         # does not fit this bill, so please choose something better for your
@@ -55,16 +65,7 @@ else:
 
 def load_data_from_origin_():
 
-    cwd = os.getcwd()
-    if re.findall('component-template$', cwd) == []:
-        path_prefix = './backend'
-    else:
-        path_prefix = ''
-    sys.path.append(path_prefix)
-    from backend.backend_util import get_df,get_df_atl_summarized, get_df_pac_summarized
-    import backend.cape_summ_table as cape_summ_table #import get_russian_vessels
-    import backend.plot_util as plot_util
-    import backend.backend_util as backend_util
+    
     
     st.markdown("""
         <center> <span style="font-size:30pt; font-family: impact; color: blue; text-shadow: 4px 4px grey; padding: 20px; letter-spacing: 10px;"> 
@@ -120,8 +121,9 @@ def load_data_from_origin_():
         with col1:
             plt = plot_util.plot_general_count(cd1,cd2)
             st.plotly_chart(plt, use_container_width=True)
-            df_operator_summarized = backend_util.get_df_operator_summarized(df)
-            st.plotly_chart(px.bar(df_operator_summarized, x = 'operator', y = 'occurence'))
+            st.plotly_chart(plot_util.operator_plot(df))
+            # df_operator_summarized = backend_util.get_df_operator_summarized(df)
+            # st.plotly_chart(px.bar(df_operator_summarized, x = 'operator', y = 'occurence'))
         # with col6:
         #     st.write(chart_data)
         m = 0
@@ -134,17 +136,56 @@ def load_data_from_origin_():
                 with col_list[m]:
                     st.plotly_chart(plt, use_container_width=True)
                     m+=1
-        return 1,2,3
+        
+        return df,cd1,cd2, tab2
+
+
+def interactive_table_compo(df, cd1):
+    st.write('Currente Atlantic Open Ships')
+    ca = cape_summ_table.present_df_(df, cd1)
+    df_open_time_min, df_open_time_max  = pd.to_datetime(
+        df['early_open'].min()
+        ), pd.to_datetime(df['late_open'].max()) + datetime.timedelta(days=60) 
+    try:
+        col1,col2, col3, _ = st.columns([2,2,2,6])
+        with col1:
+            start_date,end_date = st.date_input(
+                "date range ",
+                (df_open_time_min, df_open_time_max),
+                df_open_time_min, df_open_time_max
+                )
+        with col2:
+            st.write('reset filter button')
+            reset_date_sele = st.button('\n reset')
+            if reset_date_sele:
+                start_date,end_date=df_open_time_min, df_open_time_max
+    except:
+        start_date,end_date=df_open_time_min, df_open_time_max
+    check_interval = pd.Interval(
+        pd.to_datetime(start_date)- datetime.timedelta(days=1),
+        pd.to_datetime(end_date) + datetime.timedelta(days=1)
+        )
+    ca['overlap'] = ca.apply(lambda row: pd.Interval(
+            row['early_open'], 
+            row['late_open']
+        ).overlaps(check_interval), axis=1)
+    ca = ca[ca['overlap']].drop(['overlap'], axis = 1) 
+    len_ = 300 if len(ca)*45 < 300 else len(ca)*45
+    ca = ca.drop(
+        ['early_open', 'late_open', 'early_second_eta', 'late_second_eta'], axis = 1
+        ) #.drop(['early_open', 'late_open'], axis = 1), 
+    return pd.DataFrame(ca)
 
 def my_component(greetings, name, key=None):
     
     ls = json.dumps(os.listdir('./frontend/'))
 
-    df, summ_table, summ_table_present = load_data_from_origin_()
-    st.write(summ_table_present)
-    df1 = summ_table_present.to_json(orient='records') 
+    df, ca1, ca2, tab2 = load_data_from_origin_()
+    ca = interactive_table_compo(df,ca1)
+    ca.columns = pd.Series(ca.columns).str.replace(' ', '')
+    ca.Speed = ca.Speed.round(2)
+    df1 = ca.to_json(orient='records') 
     # df2 = summ_table_present.to_json(orient='records') 
-
     component_value = _component_func(
         greetings = greetings, 
         name=name, 

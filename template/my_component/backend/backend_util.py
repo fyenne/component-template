@@ -25,8 +25,8 @@ import plotly.express as px
 
 import pandas as pd
 
-
-def get_speed_of_vessels(imo_ls: list, engine):
+# @st.cache_resource(ttl=180*60)
+def get_speed_of_vessels(imo_ls: list, _engine):
     imo_ls = ','.join(imo_ls)
     # engine = create_engine("mssql+pyodbc://research:research@GEN-NT-SQL11\MATLAB:56094/BrokerData?driver=SQL+Server+Native+Client+10.0")    
     query = f"""
@@ -40,7 +40,7 @@ def get_speed_of_vessels(imo_ls: list, engine):
             FROM [VTPositionDB].[dbo].[VTvesselposition_last]
             where [ShipID] in ({imo_ls})
         """
-    df = pd.read_sql(query, engine) 
+    df = pd.read_sql(query, _engine) 
     return df
 
 def categorize_date(date):
@@ -51,7 +51,6 @@ def categorize_date(date):
         return 'cat11-20'
     else:   
         return f'cat21-{date.daysinmonth}'
-
 def get_df(remove_likely_fixed = 1):
     global llfixed
     if remove_likely_fixed == 1 :
@@ -97,7 +96,7 @@ def get_df(remove_likely_fixed = 1):
     diff_table_1maxtime_stamp, diff_table_2maxtime_stamp  = df.sort_values('file_time_stamp', ascending = False)['file_time_stamp'].unique()[:2]
     df = df[df['file_time_stamp'] >= diff_table_2maxtime_stamp]
     try:
-        df_get_speed_of_vessels = get_speed_of_vessels(df['imo'].tolist(), engine = engine)
+        df_get_speed_of_vessels = get_speed_of_vessels(df['imo'].tolist(), _engine = engine)
         df_get_speed_of_vessels['ShipID'] = df_get_speed_of_vessels['ShipID'].astype(str)
         df = df.merge(df_get_speed_of_vessels, left_on ='imo' ,  right_on = 'ShipID', how = 'left')
     except Exception as e:

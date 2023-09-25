@@ -23,8 +23,15 @@ from samoyan_pack.cred import cred_samo
 
 import plotly.graph_objects as go
 import plotly.express as px
-sys.path.append("D:\\samo\\bunge_freight_dashboard_ext\\pages_component\\")
 from backend.cape_summ_table import color_negative_red,color_columns
+import backend.backend_util as backend_util
+
+cwd = os.getcwd()
+if re.findall('component-template$', cwd) == []:
+    path_prefix = './backend'
+else:
+    path_prefix = ''
+sys.path.append(path_prefix)
 
 def convert_floats_to_int(df):
     # Get columns of type float
@@ -43,6 +50,7 @@ def plot_general_count(cd1,cd2, renames = 'open_ships'):
         , y = cd2['count']
         , text= cd2['count']
         , textposition='outside' 
+        , textfont_size = 25
         , name = "file date of " + cd2['file_time_stamp'].iloc[0]
         , marker=dict(
             color='#F9ABAB'
@@ -53,6 +61,7 @@ def plot_general_count(cd1,cd2, renames = 'open_ships'):
         , y = cd1['count']
         , text= cd1['count']
         , textposition='outside' 
+        , textfont_size = 25
         , name = "file date of " + cd1['file_time_stamp'].iloc[0]
         , marker=dict(color = '#FF5444')
            )
@@ -64,6 +73,7 @@ def plot_general_count(cd1,cd2, renames = 'open_ships'):
             legend_y = +1.20,
             legend_x = -.01,
             margin=dict(l=40, r=0, t=50, b=90), 
+            legend_font_size = 17,
             height = 375,
             hovermode = 'x unified',
             title = renames,
@@ -73,7 +83,16 @@ def plot_general_count(cd1,cd2, renames = 'open_ships'):
                 range=[0, max(cd1['count'].append(cd2['count']))*1.2]
             )
         )
+    plt.update_xaxes({
+        'tickfont_size': 15
+
+    })
+    plt.update_yaxes({
+        'tickfont_size': 15
+    })
+    
     return plt
+
 def plot_summ_count(i, chart_data, renames = 'open_ships', color_pair_controller = 0):
     """
     i is a pair of columns name.
@@ -102,6 +121,7 @@ def plot_summ_count(i, chart_data, renames = 'open_ships', color_pair_controller
             name=i[0],
             text=chart_data[i[0]],
             textposition="auto",
+            textfont_size = 25
         )
     )
 
@@ -115,6 +135,8 @@ def plot_summ_count(i, chart_data, renames = 'open_ships', color_pair_controller
             name=i[1],
             text=chart_data[i[1]],
             textposition="auto",
+            textfont_size = 25
+
         )
     )
     title_ = i[1]
@@ -127,6 +149,7 @@ def plot_summ_count(i, chart_data, renames = 'open_ships', color_pair_controller
         legend_y = +1.20,
         legend_x = -.01,
         legend_title = None,
+        legend_font_size = 17,
         margin=dict(l=5, r=5, t=50, b=90),
         height = 375,
         width = width_,
@@ -136,9 +159,37 @@ def plot_summ_count(i, chart_data, renames = 'open_ships', color_pair_controller
         title_y = .1,
         
     ) 
-    plt.update_xaxes({"title":None})
+    plt.update_xaxes({
+        "title":None,
+        'tickfont_size': 15
+        })
+    plt.update_yaxes({
+        'tickfont_size': 15
+    })
     return plt
 
+def operator_plot(df):
+    df_operator_summarized = backend_util.get_df_operator_summarized(df)
+    plt = px.bar(df_operator_summarized, x = 'operator', y = 'occurence')
+    plt.update_layout(
+        title = 'operator count',
+        title_xanchor="center",
+        title_yanchor="top",
+        barmode="stack",
+        margin=dict(l=5, r=5, t=50, b=90),
+        height = 375,
+        hovermode = 'x unified',
+        title_x = .55,
+        title_y = .1,
+    ) 
+    plt.update_xaxes({
+        "title":None,
+        'tickfont_size': 15
+        })
+    plt.update_yaxes({
+        'tickfont_size': 15
+    })
+    return plt
 def table_decorater_(df, mode = 1):
 
     df['order_key'] = pd.to_datetime(df['order_key'], errors='ignore')
@@ -182,3 +233,28 @@ def table_decorater_(df, mode = 1):
                         ]
     )
     return df
+
+
+
+def open_period_to_orderkey(x):
+    return pd.to_datetime(re.findall("(^\d+)", x)[0] + ' ' + re.findall("([a-zA-Z]+)", x)[0] + ' ' + re.findall("(?<=\w\s)\d+", x)[0])
+
+def convert_floats_to_int(df):
+    # Get columns of type float
+    float_cols = df.select_dtypes(include=['float']).columns  
+    for col in float_cols:
+        # Convert to int
+        df[col] = df[col].astype(int)
+        
+    return df
+
+def is_overlap(x, start_date2, end_date2):
+    start_date1 = x['early_open']
+    end_date1   = x['late_open' ]
+    latest_start = max(start_date1, start_date2)
+    earliest_end = min(end_date1, end_date2)
+    
+    if latest_start <= earliest_end:
+        return True
+    else:
+        return False
