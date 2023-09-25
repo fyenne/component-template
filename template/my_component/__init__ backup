@@ -3,18 +3,13 @@ import streamlit.components.v1 as components
 import pandas as pd
 import numpy
 import json
-import sys
-import re
 
-import plotly.graph_objects as go
-import plotly.express as px
-import streamlit as st
 # Create a _RELEASE constant. We'll set this to False while we're developing
 # the component, and True when we're ready to package and distribute it.
 # (This is, of course, optional - there are innumerable ways to manage your
 # release process.)
 _RELEASE = False
-st.set_page_config(layout="wide")
+
 # Declare a Streamlit component. `declare_component` returns a function
 # that is used to create instances of the component. We're naming this
 # function "_component_func", with an underscore prefix, because we don't want
@@ -54,6 +49,9 @@ else:
 
 
 def load_data_from_origin_():
+    import sys
+    import re
+    sys.path.append("D:\\samo\\bunge_freight_dashboard_ext\\pages_component\\")
 
     cwd = os.getcwd()
     if re.findall('component-template$', cwd) == []:
@@ -61,100 +59,83 @@ def load_data_from_origin_():
     else:
         path_prefix = ''
     sys.path.append(path_prefix)
+    path1 = r'./frontend/data/summ_table_0731.csv'
+    path2 = r'./frontend/data/summ_table_present_0731.csv'
     from backend.backend_util import get_df,get_df_atl_summarized, get_df_pac_summarized
     import backend.cape_summ_table as cape_summ_table #import get_russian_vessels
-    import backend.plot_util as plot_util
-    import backend.backend_util as backend_util
+    # import pages_component.cape_summ_table as cape_summ_table
     
-    st.markdown("""
-        <center> <span style="font-size:30pt; font-family: impact; color: blue; text-shadow: 4px 4px grey; padding: 20px; letter-spacing: 10px;"> 
-        <mark> CAPES' LIST </mark> </span> </center></ br> 
-        """, unsafe_allow_html=True)
     df = get_df(2)
     df_atl_summary = get_df_atl_summarized(df)
     df_pac_summary = get_df_pac_summarized(df)
     russianships = cape_summ_table.get_russian_vessels(df['imo'].unique().tolist())
     df = df.merge(russianships, how = 'left', left_on = 'imo', right_on = 'shipno')
-    # ---------------------------------------------------------------------------- #
-    #                                     atlan                                    #
-    # ---------------------------------------------------------------------------- #
-    
-    tab1, tab2,  = st.tabs([
-        " ✅ Atlantic open ships",
-        " ✅ COGH open ships ", 
-        # "✅ data"
-        ])
-    with tab1: # atlantic open ships
-        
-        col2,col3= st.columns([3, 1])
-        with col2:
-            cd1,cd2,chart_data = cape_summ_table.plot_data_prepare_(df_atl_summary)
-            summ_table = cape_summ_table.summ_table_(df_atl_summary, chart_data)
-            summ_table_present = summ_table[
-                [
-                    'open_period', 
-                    summ_table.columns[1],
-                    summ_table.columns[2],
-                    'diff', 'gone_cnt',  'new_cnt', 'roll_cnt', 'likely_fixed',
-                    'scrubber', 'non_scrubbed', 'drafty', 'not_drafty',
-                    'over_15yo', 'under_15yo', 'isopen_med', 'isopen_nwe', 'order_key',
-                ]
-            ]
-            summ_table_present.rename({'new_cnt': 'new', 'roll_cnt': 'roll', 'gone_cnt':'gone'}, inplace = True, axis = 1)
+    cd1,cd2,chart_data = cape_summ_table.plot_data_prepare_(df_atl_summary)
+    summ_table = cape_summ_table.summ_table_(df_atl_summary, chart_data)
+    summ_table_present = summ_table[
+        [
+            'open_period', 
+            summ_table.columns[1],
+            summ_table.columns[2],
+            'diff', 'gone_cnt',  'new_cnt', 'roll_cnt', 'likely_fixed',
+            'scrubber', 'non_scrubbed', 'drafty', 'not_drafty',
+            'over_15yo', 'under_15yo', 'isopen_med', 'isopen_nwe', 'order_key',
+            # 'new', 'roll1',
+            # 'gone', # 'roll2'
+        ]
+    ]
+    summ_table_present.rename({'new_cnt': 'new', 'roll_cnt': 'roll', 'gone_cnt':'gone'}, inplace = True, axis = 1)
+    summ_table_present['order_key'] = pd.to_datetime(summ_table_present['order_key'], errors='ignore')
 
-            st.table(
-                plot_util.table_decorater_(summ_table_present,1)
-            )
-            st.write("last refresh: ", df['last_modified_time'].max())
-        file_time_stamp = chart_data['file_time_stamp'].max()
-        chart_data = chart_data[chart_data["file_time_stamp"]==file_time_stamp]    
-
-        with col3:
-            i = ["non_scrubbed", "scrubber"]
-            plt = plot_util.plot_summ_count(i,chart_data, color_pair_controller=-1)
-            st.plotly_chart(plt, use_container_width=True) 
-
-        col1, col2, col3, col4 = st.columns([3,1,1,1])
-        col_list = [col2,col3,col4]
-        # col5,col6 = st.columns(2)
-        with col1:
-            plt = plot_util.plot_general_count(cd1,cd2)
-            st.plotly_chart(plt, use_container_width=True)
-            df_operator_summarized = backend_util.get_df_operator_summarized(df)
-            st.plotly_chart(px.bar(df_operator_summarized, x = 'operator', y = 'occurence'))
-        # with col6:
-        #     st.write(chart_data)
-        m = 0
-        for i in [
-            ["not_drafty","drafty"],
-            ["under_15yo","over_15yo"], 
-            ['isopen_med','isopen_nwe']
-            ]:
-                plt = plot_util.plot_summ_count(i,chart_data,color_pair_controller = m)
-                with col_list[m]:
-                    st.plotly_chart(plt, use_container_width=True)
-                    m+=1
-        return 1,2,3
+    return df, summ_table, summ_table_present
 
 def my_component(greetings, name, key=None):
-    
-    ls = json.dumps(os.listdir('./frontend/'))
+    """Create a new instance of "my_component".
 
+    Parameters
+    ----------
+    name: str
+        The name of the thing we're saying hello to. The component will display
+        the text "Hello, {name}!"
+    key: str or None
+        An optional key that uniquely identifies this component. If this is
+        None, and the component's arguments are changed, the component will
+        be re-mounted in the Streamlit frontend and lose its current state.
+
+    Returns
+    -------
+    int
+        The number of times the component's "Click Me" button has been clicked.
+        (This is the value passed to `Streamlit.setComponentValue` on the
+        frontend.)
+
+    """
+    # Call through to our private component function. Arguments we pass here
+    # will be sent to the frontend, where they'll be available in an "args"
+    # dictionary.
+    #
+    # "default" is a special argument that specifies the initial return
+    # value of the component before the user has interacted with it.
+    
+
+    ls = json.dumps(os.listdir('./frontend/'))
+    
     df, summ_table, summ_table_present = load_data_from_origin_()
-    st.write(summ_table_present)
     df1 = summ_table_present.to_json(orient='records') 
-    # df2 = summ_table_present.to_json(orient='records') 
+    df2 = df2.to_json(orient='records') 
 
     component_value = _component_func(
         greetings = greetings, 
         name=name, 
         ls  = ls,
         df1 = df1,
-        # df2 = df2, 
+        df2 = df2, 
         key = key, 
         default=0)
 
-    
+    # df = pd.read_csv(path)
+    # We could modify the value returned from the component if we wanted.
+    # There's no need to do this in our simple example - but it's an option.
     return component_value
 
 
@@ -162,8 +143,9 @@ def my_component(greetings, name, key=None):
 # During development, we can run this just as we would any other Streamlit
 # app: `$ streamlit run my_component/__init__.py`
 if not _RELEASE:
+    import streamlit as st
 
-    # st.subheader("Component with constant args")
+    st.subheader("Component with constant args")
 
     # Create an instance of our component with a constant `name` arg, and
     # print its output value.

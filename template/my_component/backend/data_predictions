@@ -1,0 +1,250 @@
+
+import streamlit as st 
+import pandas as pd 
+import os
+import re
+import plotly.express as px
+import plotly.graph_objects as go 
+import numpy as np
+import warnings  
+from datetime import datetime,timedelta 
+
+from sklearn.preprocessing import StandardScaler
+from sklearn.metrics import mean_squared_error, mean_absolute_percentage_error
+from prophet.plot import plot_plotly, plot_components_plotly, plot
+from prophet import Prophet
+from prophet.serialize import model_to_json, model_from_json
+
+
+from app import shorter_init_plotxaxis, run_manual_table_plt, plt_func_update
+
+
+@st.cache_resource
+def load_data_for_pred():
+    df = run_manual_table_plt()
+    # st.write(df.head(5))
+    df['tt_rolling'] = df['count'].rolling(5).mean()
+
+    return df
+
+def corr_plot(df, t_roll):
+    df_cor = df.copy(True)
+    # st.write(list(df.columns)[1:12])
+        #     [
+        # 0:"ECSA+WCSA"
+        # 1:"SAFR+EAFR"
+        # 2:"Other N ATL"
+        # 3:"ARAG+WMED+BALTIC"
+        # 4:"EMED+BLACKSEA"
+        # 5:"WCI+ECI+PG+RED SEA"
+        # 6:"SEASIA"
+        # 7:"NOPAC+WCCA"
+        # 8:"INDIA+SEASIA"
+        # 9:"TTL NATL"
+        # 10:"count"
+        # ]
+    df_cor[list(df.columns)[1:12]] = df_cor[list(df.columns)[1:12]].shift(t_roll)
+    df_corr_base = pd.DataFrame(
+        StandardScaler().fit_transform(
+            df_cor[list(df.columns)[1:13]]))
+
+    df_corr_base.columns = list(df.columns)[1:13]
+
+
+    z = df_corr_base.corr().round(3)
+
+    fig = px.imshow(z, text_auto=True, aspect="auto", color_continuous_scale='RdBu_r', )
+    st.plotly_chart(fig, use_container_width=True)
+
+@st.cache_data(persist = True)
+def predict_pmax_open(df):
+    """
+    output: m, forecast, df_manual_train
+    input: df_manual, t_roll
+    """
+    df_train = df[['date', 'count']].copy(True)
+    df_train.columns  = ['ds', 'y']
+    df_train = df_train.dropna(subset = ['y'])
+
+    model_ls = pd.Series(os.listdir(path)) 
+    try:   
+        m_name = model_ls[model_ls.str.contains('pmax_cnt_model_.+json$')].iloc[0]
+        with open(path + m_name , 'r') as fin:
+            m = model_from_json(fin.read())  # Load model
+            st.markdown('> local model')
+
+    except:
+        save_model_mark = 1
+        m = Prophet(
+            changepoint_prior_scale=0.25, 
+            growth='flat', # flat
+            seasonality_mode='multiplicative',
+            # mcmc_samples = 4,
+            # interval_width=.2,
+            )
+        st.markdown('> training new model')
+        m.fit(df_train)
+    future = m.make_future_dataframe(periods=365) 
+    forecast = m.predict(future)
+    if save_model_mark == 1:
+        from prophet.serialize import model_to_json, model_from_json 
+        with open(path + '\\pmax_cnt_model_{t}.json'.format(t = datetime.today().strftime('%Y%m%d')), 'w') as fout:
+            fout.write(model_to_json(m))  # Save model
+
+    return m, forecast, df_train
+
+def plot_forecast_1(m, forecast , df_train):
+    f = plot_plotly(m, forecast)
+    f.update_xaxes({
+        "dtick" : 10 * 7 * 24 * 3600 * 1000
+    })
+    f.update_yaxes({
+        "autorange": True,
+        "fixedrange": False
+    })
+    f.update_layout({"title":"5 days average pmax open with prediction (time seires only)", "title_x":0.5})
+    st.plotly_chart(plt_func_update(f, 1), use_container_width=True)
+    st.write("""
+    root_mean_squared_error: :red[{root_mean_squared_error}]
+    \n \t
+    mean_absolute_percentage_error: :red[{mean_absolute_percentage_error}]
+    """.format(
+        root_mean_squared_error = np.sqrt(mean_squared_error(df_train['y'],  forecast['yhat'].iloc[:len(df_train)])), 
+        mean_absolute_percentage_error =  mean_absolute_percentage_error(df_train['y'],  forecast['yhat'].iloc[:len(df_train)])
+    ))
+
+    return 1
+
+# ---------------------------------------------------------------------------- #
+#                             predcit on p4tc rate                             #
+# ---------------------------------------------------------------------------- #
+@st.cache_data(persist = True) 
+def prediction_on_rate(df_manual, t_roll):
+    """
+    output: m, forecast, df_manual_train
+    input: df_manual, t_roll
+    """
+    df_manual_train = df_manual.copy(deep = True)
+    # not write out every col names , incase they change.
+    shift_of_cols = df_manual_train.columns.copy(deep = True)
+    shift_of_cols = list(shift_of_cols[1:21])
+    for i in ["P5TC","P6", "P1A", 'year']:
+        try: 
+            shift_of_cols.remove(i) 
+        except:
+            pass
+    df_manual_train[shift_of_cols] = df_manual_train[shift_of_cols].shift(t_roll)
+    df_manual_train = df_manual_train.dropna(axis = 0, subset = 'count') .drop(['year', 'P6', 'P1A'], axis = 1)
+    df_manual_train = df_manual_train.rename({'date':'ds', 'P5TC':'y'}, axis = 1)
+
+    model_ls = pd.Series(os.listdir(path)) 
+    m_name = model_ls[model_ls.str.contains('p5tc_.+json$')].iloc[0]
+    try:                
+        with open(path + m_name +'asd' , 'r') as fin:
+            m = model_from_json(fin.read())  # Load model
+            st.markdown('> local model')
+    except:      
+        st.markdown('> training new model')
+        m = Prophet(
+            changepoint_prior_scale=0.25, 
+            growth='linear',
+            seasonality_mode='multiplicative',
+            )
+        for i in shift_of_cols: 
+            m.add_regressor(i)
+        m.fit(df_manual_train)
+        save_model_mark = 1
+
+    df_manual_valid = pd.concat([
+        m.make_future_dataframe(periods=t_roll, freq='D', include_history=False), 
+        pd.DataFrame(df_manual_train.iloc[-t_roll:, : ][shift_of_cols]).reset_index(drop = True)], axis = 1, )
+    df_manual_valid = pd.concat([df_manual_train, df_manual_valid], axis = 0)
+    forecast = m.predict(df_manual_valid)
+    # Python
+    if save_model_mark == 1:
+        from prophet.serialize import model_to_json, model_from_json 
+        with open(path + '\\p5tc_model_{t}.json'.format(t = datetime.today().strftime('%Y%m%d')), 'w') as fout:
+            fout.write(model_to_json(m))  # Save model
+
+    return m, forecast, df_manual_train
+
+
+def plot_forecast_2(m, forecast, df_manual_train): 
+    f = plot_plotly(m, forecast) 
+    f.update_yaxes({
+        "autorange": True,
+        "fixedrange": False
+    })
+    f.update_layout({
+        "title":"p5tc with prediction of {dats} days ahead".format(dats=t_roll), 
+        "title_x":0.5,
+    
+    })
+
+    # st.write(forecast['ds'].tail(10).min())
+    f.add_vrect(
+        x0=forecast['ds'].tail(t_roll).min(), 
+        x1=forecast['ds'].tail(t_roll).max(), 
+        line_width=0, fillcolor="red", opacity=0.2)
+
+    
+    # f = shorter_init_plotxaxis(f,forecast)
+
+
+
+    st.plotly_chart(plt_func_update(f, 1), use_container_width=True)
+    st.markdown("""
+    root_mean_squared_error: :red[{mean_squared_error}]
+    \n
+    mean_absolute_percentage_error: :red[{mean_absolute_percentage_error}]
+    """.format(
+        mean_squared_error = np.sqrt(mean_squared_error(forecast['yhat'].iloc[:-t_roll,], df_manual_train['y'])), 
+        mean_absolute_percentage_error =  mean_absolute_percentage_error(forecast['yhat'].iloc[:-t_roll,], df_manual_train['y'] )
+    ))
+
+
+
+@st.experimental_memo
+def save_the_prediction_(forecast):
+    return pd.DataFrame(forecast)[['yhat_lower','yhat_upper','yhat']].to_csv(index = None).encode('utf-8')
+    
+def save_the_prediction(forecast):
+    st.download_button(
+        "save a copy of current pred", 
+        save_the_prediction_(forecast), 
+        "pred_with_lag_of_{days}.csv".format(days = date),
+        "text/csv",
+        key='download-csv'   
+    )
+    return 1
+
+if __name__ == "__main__":
+    global path, t_roll, date
+    date = datetime.today().strftime("%Y%m%d")
+    path = "D:\\samo\\bunge_freight_dashboard_ext\\dataup\\"
+    df = load_data_for_pred()
+    
+    col1, col2, col3 = st.columns([1,3,1])
+    with col2:
+        # t_roll = st.slider("move count line.", min_value=0,max_value=91,value=80, disabled=True) 
+        t_roll = 81
+        corr_plot(df, t_roll)
+
+    st.markdown("""no strong corr observered, best corr score could change a lot. basically max at 2 month,.: 
+        \n however, count in India sea seems to be a good predictor to P5TC.
+        \n need more training data.
+        could up to -.6
+        """)
+
+    st.markdown("""--- \n machine learning prediction.""")
+
+    col1, col2, col3 = st.columns([1,3,1])
+    with col2:
+        plot_forecast_2(prediction_on_rate(df, t_roll)[0], prediction_on_rate(df, t_roll)[1], prediction_on_rate(df, t_roll)[2])
+        save_the_prediction(prediction_on_rate(df, t_roll)[1])
+    st.write('---')
+
+    col1, col2, col3 = st.columns([1,3,1])
+    with col2:
+        plot_forecast_1(predict_pmax_open(df)[0], predict_pmax_open(df)[1], predict_pmax_open(df)[2])
+         

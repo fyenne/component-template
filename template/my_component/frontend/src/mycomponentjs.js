@@ -39,7 +39,7 @@ class MyComponent extends StreamlitComponentBase {
     render = () => {
         const name = this.props.args["name"];
         const df1 = JSON.parse(this.props.args["df1"]);
-        const df2 = JSON.parse(this.props.args["df2"]);
+        // const df2 = JSON.parse(this.props.args["df2"]);
         
         return (
             <span className="card text-center mb-3">
@@ -85,10 +85,10 @@ class MyComponent extends StreamlitComponentBase {
                                 cell: (row) => <CustomCell df_detailed={df1} value={row} />,
                             },
                         ]}
-                        data={df2}
+                        data={df1}
                     ></DataTable>
                 <span>---</span>
-                <DataTable
+                {/* <DataTable
                 columns={[
                     {
                         name: "open_period",
@@ -109,7 +109,7 @@ class MyComponent extends StreamlitComponentBase {
                     },
                 ]}
                 data={df1}>
-                </DataTable>
+                </DataTable> */}
                 </div>
                 <br />
                 <br />
