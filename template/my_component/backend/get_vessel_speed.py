@@ -2,8 +2,9 @@
 
 import pandas as pd
 from sqlalchemy import create_engine 
+import streamlit as st
 
-
+@st.cache_resource(ttl=3600*24)
 def get_speed_of_vessels(imo_ls: list, engine):
     imo_ls = ','.join(imo_ls)
     # engine = create_engine("mssql+pyodbc://research:research@GEN-NT-SQL11\MATLAB:56094/BrokerData?driver=SQL+Server+Native+Client+10.0")    

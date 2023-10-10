@@ -25,7 +25,7 @@ import plotly.express as px
 
 import pandas as pd
 
-# @st.cache_resource(ttl=180*60)
+@st.cache_resource(ttl=60*60*24)
 def get_speed_of_vessels(imo_ls: list, _engine):
     imo_ls = ','.join(imo_ls)
     # engine = create_engine("mssql+pyodbc://research:research@GEN-NT-SQL11\MATLAB:56094/BrokerData?driver=SQL+Server+Native+Client+10.0")    
